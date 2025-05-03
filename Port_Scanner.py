@@ -10,7 +10,7 @@ from datetime import datetime
 class PortScannerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Port Scanner") 
+        self.root.title("Port Scanner")
         self.results = []
         self.output_dir = os.getcwd()  # Default output directory
         self.queue = queue.Queue()
@@ -57,6 +57,12 @@ class PortScannerGUI:
         self.result_text = tk.Text(root, height=5, width=40)
         self.result_text.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
 
+        # Treeview Results Table
+        self.result_table = ttk.Treeview(root, columns=("Port", "Status"), show="headings")
+        self.result_table.heading("Port", text="Port")
+        self.result_table.heading("Status", text="Status")
+        self.result_table.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+
         # Output Directory Label
         self.output_dir_label = tk.Label(root, text=f"Output Directory: {self.output_dir}")
         self.output_dir_label.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
@@ -92,6 +98,8 @@ class PortScannerGUI:
             self.results = []
             self.result_text.delete(1.0, tk.END)
             self.result_text.insert(tk.END, f"Scanning {ip} from {start_port} to {end_port}...\n")
+            for item in self.result_table.get_children():
+                self.result_table.delete(item)  # Clear table
             self.total_ports = end_port - start_port + 1
             self.progress_bar['maximum'] = self.total_ports
             self.progress_bar['value'] = 0
@@ -100,8 +108,14 @@ class PortScannerGUI:
             self.check_queue()
         except ValueError as e:
             messagebox.showerror("Error", f"Invalid input: {e}")
+            self.scanning = False
+            self.scan_button.config(state='normal')
+            self.clear_button.config(state='normal')
         except Exception as e:
             messagebox.showerror("Error", f"Scan failed: {e}")
+            self.scanning = False
+            self.scan_button.config(state='normal')
+            self.clear_button.config(state='normal')
 
     def scan_thread(self, ip, start_port, end_port):
         """Run the scan in a separate thread and queue results."""
@@ -127,6 +141,7 @@ class PortScannerGUI:
                     if "error" in item:
                         status += f" ({item['error']})"
                     self.result_text.insert(tk.END, f"Port {item['port']}: {status}\n")
+                    self.result_table.insert("", tk.END, values=(item["port"], status))  # Add to Treeview
                     self.progress_bar['value'] += 1
         except queue.Empty:
             pass
@@ -143,7 +158,7 @@ class PortScannerGUI:
         self.result_text.insert(tk.END, f"Results saved to {filepath}\n")
 
     def clear(self):
-        """Reset input fields, results, and progress bar."""
+        """Reset input fields, results, table, and progress bar."""
         self.ip_entry.delete(0, tk.END)
         self.ip_entry.insert(0, "192.168.1.1")
         self.start_port_entry.delete(0, tk.END)
@@ -151,6 +166,8 @@ class PortScannerGUI:
         self.end_port_entry.delete(0, tk.END)
         self.end_port_entry.insert(0, "85")
         self.result_text.delete(1.0, tk.END)
+        for item in self.result_table.get_children():
+            self.result_table.delete(item)  # Clear Treeview
         self.results = []
         self.progress_bar['value'] = 0
 
@@ -168,9 +185,9 @@ class PortScannerGUI:
             "1. Enter the target IP address.\n"
             "2. Enter the start and end port numbers (1-65535).\n"
             "3. Click 'Scan Ports' to start scanning.\n"
-            "4. Results will be displayed in the text area and saved to a CSV file in the selected output directory.\n"
+            "4. Results will be displayed in the text area and table, and saved to a CSV file.\n"
             "5. Use 'Options' > 'Set Output Directory' to change the save location.\n"
-            "6. Click 'Clear' to reset the inputs and results."
+            "6. Click 'Clear' to reset the inputs, results, and table."
         )
         messagebox.showinfo("Instructions", instructions)
 
